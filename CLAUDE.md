@@ -42,6 +42,34 @@ supabase/migrations/           # 8 ordered SQL migration files
 scripts/import-airports.ts     # OurAirports CSV import script
 ```
 
+## Git Conventions
+
+This repo uses **release-please** for automated versioning. Commit messages MUST follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>: <description>
+```
+
+### Types
+- `feat:` — New feature (→ minor version bump)
+- `fix:` — Bug fix (→ patch version bump)
+- `feat!:` or `fix!:` or `BREAKING CHANGE:` in body — Breaking change (→ major bump)
+- `chore:` — Maintenance, deps, config (no version bump)
+- `docs:` — Documentation only (no version bump)
+- `refactor:` — Code change that neither fixes nor adds (no version bump)
+- `test:` — Adding or updating tests (no version bump)
+- `ci:` — CI/CD changes (no version bump)
+
+### Rules
+- After completing and verifying a task, create a commit with the appropriate prefix
+- The description should explain **why**, not just what (the diff shows what)
+- Keep the first line under 72 characters
+- Multi-file changes get a single commit unless they're logically separate
+- If a task adds a feature AND fixes a bug, use `feat:` (the higher bump wins)
+
+### Deploy Flow
+Push to main → release-please opens a Release PR → merge it → tag created → GH Actions builds Docker image → GHCR → Watchtower deploys on Unraid.
+
 ## Commands
 
 ```bash
