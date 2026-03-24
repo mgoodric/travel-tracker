@@ -25,7 +25,7 @@ Family travel tracking app for logging flights, visits, airports, miles, and tra
 | Auth | [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) (reverse proxy) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) + [shadcn/ui v4](https://ui.shadcn.com) |
 | Maps | [Leaflet](https://leafletjs.com) via [react-leaflet](https://react-leaflet.js.org) |
-| Deploy | Docker on [Unraid](https://unraid.net) via [Watchtower](https://containrrr.dev/watchtower/) |
+| Deploy | Docker via GitHub Container Registry |
 | CI/CD | GitHub Actions (release-please, CodeQL, Trivy, GHCR) |
 
 ## Getting Started
@@ -114,7 +114,7 @@ In production, place [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/
 
 ### Automated deploys
 
-Push to `main` triggers [release-please](https://github.com/googleapis/release-please) which opens a release PR. Merging that PR tags a release, builds a Docker image, and pushes to GHCR. [Watchtower](https://containrrr.dev/watchtower/) on Unraid automatically pulls new images.
+Push to `main` triggers [release-please](https://github.com/googleapis/release-please) which opens a release PR. Merging that PR tags a release, builds a Docker image, and pushes to GHCR.
 
 ## Database
 
@@ -145,6 +145,11 @@ npm run lint         # ESLint
 - **Server Actions** for all mutations (create/update/delete flights, visits, family members)
 - **Direct SQL** via postgres.js tagged template literals -- no ORM
 - **Haversine distance** computed at write time and stored on the flight row
+
+## Roadmap
+
+- [ ] Built-in authentication (email/password login for users without oauth2-proxy)
+- [ ] Multi-user support
 
 ## License
 

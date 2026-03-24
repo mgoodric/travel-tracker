@@ -73,7 +73,7 @@ This repo uses **release-please** for automated versioning. Commit messages MUST
 - If a task adds a feature AND fixes a bug, use `feat:` (the higher bump wins)
 
 ### Deploy Flow
-Push to main → release-please opens a Release PR → merge it → tag created → GH Actions builds Docker image → GHCR → Watchtower deploys on Unraid.
+Push to main → release-please opens a Release PR → merge it → tag created → GH Actions builds Docker image → GHCR.
 
 ## Commands
 
