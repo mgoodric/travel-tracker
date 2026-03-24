@@ -1,30 +1,32 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
+import { getUserId } from "@/lib/auth";
+import type { FamilyMember } from "@/lib/types/database";
 import { FlightForm } from "@/components/flights/flight-form";
 import { updateFlight } from "@/actions/flights";
 
 export default async function EditFlightPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const userId = await getUserId();
 
-  const [flightResult, membersResult] = await Promise.all([
-    supabase
-      .from("flights")
-      .select(`
-        *,
-        departure_airport:airports!departure_airport_id(*),
-        arrival_airport:airports!arrival_airport_id(*),
-        flight_passengers(role, family_member_id)
-      `)
-      .eq("id", id)
-      .single(),
-    supabase.from("family_members").select("*").order("name"),
+  const [[flight], familyMembers] = await Promise.all([
+    sql`
+      SELECT f.*,
+        jsonb_build_object('id', da.id, 'ident', da.ident, 'iata_code', da.iata_code, 'name', da.name, 'latitude', da.latitude, 'longitude', da.longitude, 'elevation_ft', da.elevation_ft, 'type', da.type, 'municipality', da.municipality, 'iso_country', da.iso_country, 'iso_region', da.iso_region) AS departure_airport,
+        jsonb_build_object('id', aa.id, 'ident', aa.ident, 'iata_code', aa.iata_code, 'name', aa.name, 'latitude', aa.latitude, 'longitude', aa.longitude, 'elevation_ft', aa.elevation_ft, 'type', aa.type, 'municipality', aa.municipality, 'iso_country', aa.iso_country, 'iso_region', aa.iso_region) AS arrival_airport,
+        COALESCE(
+          (SELECT jsonb_agg(jsonb_build_object('role', fp.role, 'family_member_id', fp.family_member_id))
+           FROM flight_passengers fp WHERE fp.flight_id = f.id), '[]'::jsonb
+        ) AS flight_passengers
+      FROM flights f
+      JOIN airports da ON da.id = f.departure_airport_id
+      JOIN airports aa ON aa.id = f.arrival_airport_id
+      WHERE f.id = ${id}
+    `,
+    sql<FamilyMember[]>`SELECT * FROM family_members WHERE user_id = ${userId} ORDER BY name`,
   ]);
 
-  const flight = flightResult.data;
   if (!flight) notFound();
-
-  const familyMembers = membersResult.data;
 
   const boundAction = updateFlight.bind(null, id);
 
@@ -32,8 +34,8 @@ export default async function EditFlightPage({ params }: { params: Promise<{ id:
     <div>
       <h1 className="mb-6 text-2xl font-bold">Edit Flight</h1>
       <FlightForm
-        flight={flight}
-        familyMembers={familyMembers || []}
+        flight={flight as any}
+        familyMembers={familyMembers as any}
         action={boundAction}
       />
     </div>

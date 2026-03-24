@@ -1,17 +1,20 @@
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { MemberCard } from "@/components/family/member-card";
 import { MemberFormDialog } from "@/components/family/member-form";
 import { EmptyState } from "@/components/shared/empty-state";
+import type { FamilyMember, MemberStats } from "@/lib/types/database";
 
 export default async function FamilyPage() {
-  const supabase = await createClient();
-  const [{ data: members }, { data: memberStats }] = await Promise.all([
-    supabase.from("family_members").select("*").order("created_at", { ascending: true }),
-    supabase.from("member_stats").select("*"),
+  const userId = await getUserId();
+
+  const [members, memberStats] = await Promise.all([
+    sql<FamilyMember[]>`SELECT * FROM family_members WHERE user_id = ${userId} ORDER BY created_at ASC`,
+    sql<MemberStats[]>`SELECT ms.* FROM member_stats ms JOIN family_members fm ON fm.id = ms.family_member_id WHERE fm.user_id = ${userId}`,
   ]);
 
   const statsMap = new Map(
-    (memberStats ?? []).map((s) => [s.family_member_id, s])
+    memberStats.map((s) => [s.family_member_id, s])
   );
 
   return (
@@ -24,7 +27,7 @@ export default async function FamilyPage() {
         <MemberFormDialog />
       </div>
 
-      {!members || members.length === 0 ? (
+      {members.length === 0 ? (
         <EmptyState
           title="No family members yet"
           description="Add your family members to start tracking who travels where."

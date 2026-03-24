@@ -1,21 +1,15 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
 import { AppNav } from "@/components/app-nav";
 
 async function signOut() {
   "use server";
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect("/login");
+  redirect("/oauth2/sign_out");
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  // Throws if not authenticated (oauth2-proxy not present and no DEV_USER_ID)
+  await getUserId();
 
   return (
     <div className="min-h-screen bg-background">

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,18 +8,17 @@ import { DeleteVisitButton } from "@/components/visits/delete-visit-button";
 
 export default async function VisitDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const { data: visit } = await supabase
-    .from("visits")
-    .select(`
-      *,
-      visit_members(
-        family_member:family_members(*)
-      )
-    `)
-    .eq("id", id)
-    .single();
+  const [visit] = await sql`
+    SELECT v.*,
+      COALESCE(
+        (SELECT jsonb_agg(jsonb_build_object('family_member', jsonb_build_object('id', fm.id, 'name', fm.name)))
+         FROM visit_members vm JOIN family_members fm ON fm.id = vm.family_member_id
+         WHERE vm.visit_id = v.id), '[]'::jsonb
+      ) AS visit_members
+    FROM visits v
+    WHERE v.id = ${id}
+  `;
 
   if (!visit) notFound();
 
@@ -45,7 +44,7 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Date</p>
-              <p>{new Date(visit.visit_date).toLocaleDateString()}</p>
+              <p>{visit.visit_date ? new Date(visit.visit_date).toLocaleDateString() : "Unknown"}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Country</p>

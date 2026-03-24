@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,21 +10,21 @@ import { transformFlightsToRoutes } from "@/lib/flight-routes";
 
 export default async function FlightDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const { data: flight } = await supabase
-    .from("flights")
-    .select(`
-      *,
-      departure_airport:airports!departure_airport_id(*),
-      arrival_airport:airports!arrival_airport_id(*),
-      flight_passengers(
-        role,
-        family_member:family_members(*)
-      )
-    `)
-    .eq("id", id)
-    .single();
+  const [flight] = await sql`
+    SELECT f.*,
+      jsonb_build_object('id', da.id, 'ident', da.ident, 'iata_code', da.iata_code, 'name', da.name, 'latitude', da.latitude, 'longitude', da.longitude, 'elevation_ft', da.elevation_ft, 'type', da.type, 'municipality', da.municipality, 'iso_country', da.iso_country, 'iso_region', da.iso_region) AS departure_airport,
+      jsonb_build_object('id', aa.id, 'ident', aa.ident, 'iata_code', aa.iata_code, 'name', aa.name, 'latitude', aa.latitude, 'longitude', aa.longitude, 'elevation_ft', aa.elevation_ft, 'type', aa.type, 'municipality', aa.municipality, 'iso_country', aa.iso_country, 'iso_region', aa.iso_region) AS arrival_airport,
+      COALESCE(
+        (SELECT jsonb_agg(jsonb_build_object('role', fp.role, 'family_member', jsonb_build_object('id', fm.id, 'name', fm.name)))
+         FROM flight_passengers fp JOIN family_members fm ON fm.id = fp.family_member_id
+         WHERE fp.flight_id = f.id), '[]'::jsonb
+      ) AS flight_passengers
+    FROM flights f
+    JOIN airports da ON da.id = f.departure_airport_id
+    JOIN airports aa ON aa.id = f.arrival_airport_id
+    WHERE f.id = ${id}
+  `;
 
   if (!flight) notFound();
 
@@ -90,7 +90,6 @@ export default async function FlightDetailPage({ params }: { params: Promise<{ i
             )}
           </div>
 
-          {/* Commercial flight details */}
           {flight.category === "commercial" && (flight.seat || flight.cabin_class || flight.booking_reference) && (
             <div className="grid gap-4 sm:grid-cols-3">
               {flight.seat && (
@@ -114,7 +113,6 @@ export default async function FlightDetailPage({ params }: { params: Promise<{ i
             </div>
           )}
 
-          {/* Terminal & gate info */}
           {(flight.departure_terminal || flight.departure_gate || flight.arrival_terminal || flight.arrival_gate) && (
             <div className="grid gap-4 sm:grid-cols-2">
               {(flight.departure_terminal || flight.departure_gate) && (

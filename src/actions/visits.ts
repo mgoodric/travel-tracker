@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import sql, { transaction } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 async function geocode(city: string | null, state: string | null, country: string): Promise<{ lat: number; lng: number } | null> {
   const q = [city, state, country].filter(Boolean).join(", ");
@@ -18,9 +19,7 @@ async function geocode(city: string | null, state: string | null, country: strin
 }
 
 export async function createVisit(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const userId = await getUserId();
 
   const unknownDate = formData.get("unknown_date") === "on";
   const visitDate = unknownDate ? null : (formData.get("visit_date") as string);
@@ -31,42 +30,32 @@ export async function createVisit(formData: FormData) {
 
   const coords = await geocode(city, state, country);
 
-  const { data: visit, error } = await supabase
-    .from("visits")
-    .insert({
-      user_id: user.id,
-      visit_date: visitDate,
-      country,
-      state,
-      city,
-      notes,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-    })
-    .select("id")
-    .single();
+  await transaction(async (tx) => {
+    const [visit] = await tx`
+      INSERT INTO visits (user_id, visit_date, country, state, city, notes, latitude, longitude)
+      VALUES (${userId}, ${visitDate}, ${country}, ${state}, ${city}, ${notes}, ${coords?.lat ?? null}, ${coords?.lng ?? null})
+      RETURNING id
+    `;
 
-  if (error) throw new Error(error.message);
-
-  const membersJson = formData.get("members") as string;
-  if (membersJson) {
-    const memberIds = JSON.parse(membersJson) as string[];
-    if (memberIds.length > 0) {
-      const { error: mError } = await supabase.from("visit_members").insert(
-        memberIds.map(id => ({ visit_id: visit.id, family_member_id: id }))
-      );
-      if (mError) throw new Error(mError.message);
+    const membersJson = formData.get("members") as string;
+    if (membersJson) {
+      const memberIds = JSON.parse(membersJson) as string[];
+      if (memberIds.length > 0) {
+        await tx`
+          INSERT INTO visit_members ${tx(
+            memberIds.map(mid => ({ visit_id: visit.id, family_member_id: mid }))
+          )}
+        `;
+      }
     }
-  }
+  });
 
   revalidatePath("/visits");
   redirect("/visits");
 }
 
 export async function updateVisit(id: string, formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  await getUserId();
 
   const unknownDate = formData.get("unknown_date") === "on";
   const visitDate = unknownDate ? null : (formData.get("visit_date") as string);
@@ -77,62 +66,46 @@ export async function updateVisit(id: string, formData: FormData) {
 
   const coords = await geocode(city, state, country);
 
-  const { error } = await supabase
-    .from("visits")
-    .update({
-      visit_date: visitDate,
-      country,
-      state,
-      city,
-      notes,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  await transaction(async (tx) => {
+    await tx`
+      UPDATE visits SET
+        visit_date = ${visitDate}, country = ${country}, state = ${state},
+        city = ${city}, notes = ${notes},
+        latitude = ${coords?.lat ?? null}, longitude = ${coords?.lng ?? null},
+        updated_at = now()
+      WHERE id = ${id}
+    `;
 
-  if (error) throw new Error(error.message);
-
-  // Replace members
-  await supabase.from("visit_members").delete().eq("visit_id", id);
-  const membersJson = formData.get("members") as string;
-  if (membersJson) {
-    const memberIds = JSON.parse(membersJson) as string[];
-    if (memberIds.length > 0) {
-      await supabase.from("visit_members").insert(
-        memberIds.map(mid => ({ visit_id: id, family_member_id: mid }))
-      );
+    // Replace members
+    await tx`DELETE FROM visit_members WHERE visit_id = ${id}`;
+    const membersJson = formData.get("members") as string;
+    if (membersJson) {
+      const memberIds = JSON.parse(membersJson) as string[];
+      if (memberIds.length > 0) {
+        await tx`
+          INSERT INTO visit_members ${tx(
+            memberIds.map(mid => ({ visit_id: id, family_member_id: mid }))
+          )}
+        `;
+      }
     }
-  }
+  });
 
   revalidatePath("/visits");
   redirect("/visits");
 }
 
 export async function deleteVisit(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { error } = await supabase.from("visits").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-
+  const userId = await getUserId();
+  await sql`DELETE FROM visits WHERE id = ${id} AND user_id = ${userId}`;
   revalidatePath("/visits");
   redirect("/visits");
 }
 
 export async function bulkDeleteVisits(ids: string[]) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+  const userId = await getUserId();
   if (ids.length === 0) return;
-
-  // Delete visit_members first, then visits
-  await supabase.from("visit_members").delete().in("visit_id", ids);
-  const { error } = await supabase.from("visits").delete().in("id", ids);
-  if (error) throw new Error(error.message);
-
+  await sql`DELETE FROM visits WHERE id = ANY(${ids}) AND user_id = ${userId}`;
   revalidatePath("/visits");
   revalidatePath("/family");
 }

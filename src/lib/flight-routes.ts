@@ -22,13 +22,6 @@ export const ROUTE_COLORS: Record<FlightCategory, string> = {
   general_aviation: "oklch(0.7 0.2 150)", // green
 };
 
-export const FLIGHT_MAP_SELECT = `
-  id,
-  category,
-  departure_airport:airports!departure_airport_id(ident, iata_code, name, latitude, longitude),
-  arrival_airport:airports!arrival_airport_id(ident, iata_code, name, latitude, longitude)
-`;
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function transformFlightsToRoutes(flights: any[]): FlightRoute[] {
   return flights

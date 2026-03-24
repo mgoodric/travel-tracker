@@ -1,20 +1,28 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { FlightCard } from "@/components/flights/flight-card";
 import { EmptyState } from "@/components/shared/empty-state";
 
 export default async function FlightsPage() {
-  const supabase = await createClient();
-  const { data: flights } = await supabase
-    .from("flights")
-    .select(`
-      *,
-      departure_airport:airports!departure_airport_id(*),
-      arrival_airport:airports!arrival_airport_id(*),
-      passengers:flight_passengers(family_member:family_members(name))
-    `)
-    .order("departure_date", { ascending: false });
+  const userId = await getUserId();
+
+  const flights = await sql`
+    SELECT f.*,
+      jsonb_build_object('id', da.id, 'ident', da.ident, 'iata_code', da.iata_code, 'name', da.name, 'latitude', da.latitude, 'longitude', da.longitude, 'elevation_ft', da.elevation_ft, 'type', da.type, 'municipality', da.municipality, 'iso_country', da.iso_country, 'iso_region', da.iso_region) AS departure_airport,
+      jsonb_build_object('id', aa.id, 'ident', aa.ident, 'iata_code', aa.iata_code, 'name', aa.name, 'latitude', aa.latitude, 'longitude', aa.longitude, 'elevation_ft', aa.elevation_ft, 'type', aa.type, 'municipality', aa.municipality, 'iso_country', aa.iso_country, 'iso_region', aa.iso_region) AS arrival_airport,
+      COALESCE(
+        (SELECT jsonb_agg(jsonb_build_object('family_member', jsonb_build_object('name', fm.name)))
+         FROM flight_passengers fp JOIN family_members fm ON fm.id = fp.family_member_id
+         WHERE fp.flight_id = f.id), '[]'::jsonb
+      ) AS passengers
+    FROM flights f
+    JOIN airports da ON da.id = f.departure_airport_id
+    JOIN airports aa ON aa.id = f.arrival_airport_id
+    WHERE f.user_id = ${userId}
+    ORDER BY f.departure_date DESC
+  `;
 
   return (
     <div>
@@ -28,7 +36,7 @@ export default async function FlightsPage() {
         </Link>
       </div>
 
-      {!flights || flights.length === 0 ? (
+      {flights.length === 0 ? (
         <EmptyState
           title="No flights logged"
           description="Start logging your flights to track your travel stats."
@@ -41,7 +49,7 @@ export default async function FlightsPage() {
       ) : (
         <div className="space-y-4">
           {flights.map((flight) => (
-            <FlightCard key={flight.id} flight={flight} />
+            <FlightCard key={flight.id} flight={flight as any} />
           ))}
         </div>
       )}

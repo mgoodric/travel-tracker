@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { FlightMap } from "@/components/maps/flight-map-dynamic";
@@ -16,60 +16,44 @@ interface Props {
 
 export default async function FamilyMemberPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  // Fetch member
-  const { data: member } = await supabase
-    .from("family_members")
-    .select("*")
-    .eq("id", id)
-    .single();
+  // Fetch member, flights, and visits in parallel
+  const [[member], memberFlights, memberVisitRows] = await Promise.all([
+    sql`SELECT * FROM family_members WHERE id = ${id}`,
+    sql`
+    SELECT f.*,
+      jsonb_build_object('id', da.id, 'ident', da.ident, 'iata_code', da.iata_code, 'name', da.name, 'latitude', da.latitude, 'longitude', da.longitude, 'elevation_ft', da.elevation_ft, 'type', da.type, 'municipality', da.municipality, 'iso_country', da.iso_country, 'iso_region', da.iso_region) AS departure_airport,
+      jsonb_build_object('id', aa.id, 'ident', aa.ident, 'iata_code', aa.iata_code, 'name', aa.name, 'latitude', aa.latitude, 'longitude', aa.longitude, 'elevation_ft', aa.elevation_ft, 'type', aa.type, 'municipality', aa.municipality, 'iso_country', aa.iso_country, 'iso_region', aa.iso_region) AS arrival_airport,
+      COALESCE(
+        (SELECT jsonb_agg(jsonb_build_object('role', fp2.role, 'family_member_id', fp2.family_member_id, 'family_member', jsonb_build_object('id', fm2.id, 'name', fm2.name, 'relationship', fm2.relationship, 'user_id', fm2.user_id, 'created_at', fm2.created_at, 'updated_at', fm2.updated_at)))
+         FROM flight_passengers fp2 JOIN family_members fm2 ON fm2.id = fp2.family_member_id
+         WHERE fp2.flight_id = f.id), '[]'::jsonb
+      ) AS passengers
+    FROM flight_passengers fp
+    JOIN flights f ON f.id = fp.flight_id
+    JOIN airports da ON da.id = f.departure_airport_id
+    JOIN airports aa ON aa.id = f.arrival_airport_id
+    WHERE fp.family_member_id = ${id}
+    ORDER BY f.departure_date DESC
+  `,
+    sql`
+    SELECT v.*,
+      COALESCE(
+        (SELECT jsonb_agg(jsonb_build_object('id', fm2.id, 'name', fm2.name, 'relationship', fm2.relationship, 'user_id', fm2.user_id, 'created_at', fm2.created_at, 'updated_at', fm2.updated_at))
+         FROM visit_members vm2 JOIN family_members fm2 ON fm2.id = vm2.family_member_id
+         WHERE vm2.visit_id = v.id), '[]'::jsonb
+      ) AS members
+    FROM visit_members vm
+    JOIN visits v ON v.id = vm.visit_id
+    WHERE vm.family_member_id = ${id}
+    ORDER BY v.visit_date DESC NULLS LAST
+  `,
+  ]);
 
   if (!member) notFound();
 
-  // Fetch flights by joining through flight_passengers (avoids .in() URL length limit)
-  const { data: memberFlightRows } = await supabase
-    .from("flight_passengers")
-    .select(`
-      flight:flights(
-        *,
-        departure_airport:airports!departure_airport_id(*),
-        arrival_airport:airports!arrival_airport_id(*),
-        passengers:flight_passengers(*, family_member:family_members(*))
-      )
-    `)
-    .eq("family_member_id", id);
-
-  const flights = (memberFlightRows ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((r: any) => r.flight)
-    .filter(Boolean)
-    .sort((a: FlightWithAirports, b: FlightWithAirports) =>
-      b.departure_date.localeCompare(a.departure_date)
-    ) as FlightWithAirports[];
-
-  // Fetch visits by joining through visit_members
-  const { data: memberVisitRows } = await supabase
-    .from("visit_members")
-    .select(`
-      visit:visits(
-        *,
-        members:visit_members(*, family_member:family_members(*))
-      )
-    `)
-    .eq("family_member_id", id);
-
-  const visits = (memberVisitRows ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((r: any) => ({
-      ...r.visit,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      members: (r.visit?.members ?? []).map((m: any) => m.family_member),
-    }))
-    .filter((v: VisitWithMembers) => v.id)
-    .sort((a: VisitWithMembers, b: VisitWithMembers) =>
-      (b.visit_date ?? "").localeCompare(a.visit_date ?? "")
-    ) as VisitWithMembers[];
+  const flights = memberFlights as unknown as FlightWithAirports[];
+  const visits = memberVisitRows as unknown as VisitWithMembers[];
 
   // Compute flight stats
   let gaFlights = 0;
@@ -82,7 +66,6 @@ export default async function FamilyMemberPage({ params }: Props) {
   for (const f of flights) {
     if (f.category === "general_aviation") {
       gaFlights++;
-      // Track GA-visited US states
       for (const airport of [f.departure_airport, f.arrival_airport]) {
         if (airport.iso_country === "US" && airport.iso_region) {
           const abbr = isoRegionToStateAbbrev(airport.iso_region);
@@ -100,8 +83,7 @@ export default async function FamilyMemberPage({ params }: Props) {
     uniqueAirports.add(f.arrival_airport_id);
   }
 
-  // Derive visited states/countries from visits only (not flight airports)
-  // This avoids counting layover airports as visited states
+  // Derive visited states/countries from visits only
   const visitedStateNames = new Set<string>();
   const visitedCountryNames = new Set<string>();
 
@@ -110,7 +92,6 @@ export default async function FamilyMemberPage({ params }: Props) {
     if (v.state && v.country === "United States") visitedStateNames.add(v.state);
   }
 
-  // Convert to codes for choropleths
   const visitedCountryCodes = new Set<string>();
   for (const name of visitedCountryNames) {
     const code = COUNTRY_TO_ISO3[name];
@@ -158,7 +139,6 @@ export default async function FamilyMemberPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Link
           href="/family"
@@ -172,7 +152,6 @@ export default async function FamilyMemberPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.label}>
@@ -184,7 +163,6 @@ export default async function FamilyMemberPage({ params }: Props) {
         ))}
       </div>
 
-      {/* Flight Map */}
       {routes.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3">Flight Map</h2>
@@ -192,7 +170,6 @@ export default async function FamilyMemberPage({ params }: Props) {
         </div>
       )}
 
-      {/* Choropleths + Filterable States/Countries + Flights/Visits */}
       <MemberDetailContent
         allStates={Array.from(visitedStateNames).sort()}
         gaStates={Array.from(gaStateNames).sort()}

@@ -1,15 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { FlightMap } from "@/components/maps/flight-map-dynamic";
-import { transformFlightsToRoutes, FLIGHT_MAP_SELECT } from "@/lib/flight-routes";
+import { transformFlightsToRoutes } from "@/lib/flight-routes";
 
 export default async function MapPage() {
-  const supabase = await createClient();
+  const userId = await getUserId();
 
-  const { data: flights } = await supabase
-    .from("flights")
-    .select(FLIGHT_MAP_SELECT);
+  const flights = await sql`
+    SELECT f.id, f.category,
+      jsonb_build_object('ident', da.ident, 'iata_code', da.iata_code, 'name', da.name, 'latitude', da.latitude, 'longitude', da.longitude) AS departure_airport,
+      jsonb_build_object('ident', aa.ident, 'iata_code', aa.iata_code, 'name', aa.name, 'latitude', aa.latitude, 'longitude', aa.longitude) AS arrival_airport
+    FROM flights f
+    JOIN airports da ON da.id = f.departure_airport_id
+    JOIN airports aa ON aa.id = f.arrival_airport_id
+    WHERE f.user_id = ${userId}
+  `;
 
-  const routes = transformFlightsToRoutes(flights || []);
+  const routes = transformFlightsToRoutes(flights);
 
   return (
     <div className="space-y-4">

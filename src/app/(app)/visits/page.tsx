@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { VisitCard } from "@/components/visits/visit-card";
 import { VisitMap } from "@/components/maps/visit-map-dynamic";
@@ -7,17 +8,21 @@ import { EmptyState } from "@/components/shared/empty-state";
 import type { VisitPin } from "@/components/maps/visit-map-dynamic";
 
 export default async function VisitsPage() {
-  const supabase = await createClient();
-  const { data: visits } = await supabase
-    .from("visits")
-    .select(`
-      *,
-      members:visit_members(family_member:family_members(name))
-    `)
-    .order("visit_date", { ascending: false });
+  const userId = await getUserId();
 
-  // Build map pins from visits with coordinates
-  const pins: VisitPin[] = (visits ?? [])
+  const visits = await sql`
+    SELECT v.*,
+      COALESCE(
+        (SELECT jsonb_agg(jsonb_build_object('family_member', jsonb_build_object('name', fm.name)))
+         FROM visit_members vm JOIN family_members fm ON fm.id = vm.family_member_id
+         WHERE vm.visit_id = v.id), '[]'::jsonb
+      ) AS members
+    FROM visits v
+    WHERE v.user_id = ${userId}
+    ORDER BY v.visit_date DESC NULLS LAST
+  `;
+
+  const pins: VisitPin[] = visits
     .filter((v) => v.latitude && v.longitude)
     .map((v) => ({
       id: v.id,
@@ -41,7 +46,7 @@ export default async function VisitsPage() {
         </Link>
       </div>
 
-      {!visits || visits.length === 0 ? (
+      {visits.length === 0 ? (
         <EmptyState
           title="No visits logged"
           description="Track road trips, cruises, and other non-flight travel."
@@ -62,7 +67,7 @@ export default async function VisitsPage() {
 
           <div className="space-y-4">
             {visits.map((visit) => (
-              <VisitCard key={visit.id} visit={visit} />
+              <VisitCard key={visit.id} visit={visit as any} />
             ))}
           </div>
         </>

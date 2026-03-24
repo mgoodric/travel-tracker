@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import sql from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const field = searchParams.get("field"); // "country" | "state" | "city"
+  const field = searchParams.get("field");
   const country = searchParams.get("country");
   const state = searchParams.get("state");
 
@@ -11,28 +12,51 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
 
-  const supabase = await createClient();
+  const userId = await getUserId();
 
-  let query = supabase.from("visits").select(field);
+  let results: { value: string }[];
 
-  // Filter by parent fields for cascading
-  if (field === "state" && country) {
-    query = query.eq("country", country);
+  if (field === "country") {
+    results = await sql`
+      SELECT DISTINCT country AS value FROM visits
+      WHERE user_id = ${userId} AND country IS NOT NULL
+      ORDER BY value LIMIT 500
+    `;
+  } else if (field === "state") {
+    results = country
+      ? await sql`
+          SELECT DISTINCT state AS value FROM visits
+          WHERE user_id = ${userId} AND state IS NOT NULL AND country = ${country}
+          ORDER BY value LIMIT 500
+        `
+      : await sql`
+          SELECT DISTINCT state AS value FROM visits
+          WHERE user_id = ${userId} AND state IS NOT NULL
+          ORDER BY value LIMIT 500
+        `;
+  } else {
+    // city
+    if (country && state) {
+      results = await sql`
+        SELECT DISTINCT city AS value FROM visits
+        WHERE user_id = ${userId} AND city IS NOT NULL AND country = ${country} AND state = ${state}
+        ORDER BY value LIMIT 500
+      `;
+    } else if (country) {
+      results = await sql`
+        SELECT DISTINCT city AS value FROM visits
+        WHERE user_id = ${userId} AND city IS NOT NULL AND country = ${country}
+        ORDER BY value LIMIT 500
+      `;
+    } else {
+      results = await sql`
+        SELECT DISTINCT city AS value FROM visits
+        WHERE user_id = ${userId} AND city IS NOT NULL
+        ORDER BY value LIMIT 500
+      `;
+    }
   }
-  if (field === "city") {
-    if (country) query = query.eq("country", country);
-    if (state) query = query.eq("state", state);
-  }
 
-  // Get non-null values (limited to prevent unbounded queries)
-  query = query.not(field, "is", null).order(field).limit(500);
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json([]);
-
-  // Deduplicate (Supabase doesn't have DISTINCT on single column easily)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const unique = [...new Set(data.map((row: any) => row[field] as string))].filter(Boolean);
-
+  const unique = results.map((r) => r.value).filter(Boolean);
   return NextResponse.json(unique);
 }

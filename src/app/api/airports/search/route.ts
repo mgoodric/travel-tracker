@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import sql from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q");
@@ -8,22 +8,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const { data, error } = await supabase
-    .from("airports")
-    .select("id, ident, iata_code, name, latitude, longitude, elevation_ft, type, municipality, iso_country, iso_region")
-    .or(`search_text.ilike.%${q}%,ident.eq.${q.toUpperCase()}`)
-    .order("type", { ascending: true })
-    .limit(10);
-
-  if (error) {
-    console.error("Airport search error:", error.message);
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
-  }
+  const data = await sql`
+    SELECT id, ident, iata_code, name, latitude, longitude, elevation_ft, type, municipality, iso_country, iso_region
+    FROM airports
+    WHERE search_text ILIKE ${"%" + q + "%"} OR ident = ${q.toUpperCase()}
+    ORDER BY type ASC
+    LIMIT 10
+  `;
 
   return NextResponse.json(data);
 }

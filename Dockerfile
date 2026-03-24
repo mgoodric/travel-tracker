@@ -10,9 +10,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# Dummy values so Supabase client doesn't fail during prerendering
-ENV NEXT_PUBLIC_SUPABASE_URL=http://placeholder
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder
+# Dummy values for build-time (actual values provided at runtime)
+ENV DATABASE_URL=postgresql://placeholder:placeholder@placeholder/placeholder
+ENV APP_USER_ID=00000000-0000-0000-0000-000000000000
+ENV DEV_USER_ID=00000000-0000-0000-0000-000000000000
 RUN npm run build
 
 FROM base AS runner
