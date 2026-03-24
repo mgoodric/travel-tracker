@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/mgoodric/travel-tracker/compare/v2.0.0...v2.0.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* use X-Email header from oauth2-proxy nginx auth_request ([431b07d](https://github.com/mgoodric/travel-tracker/commit/431b07d0f897b9c1cae84b83762ff0eea98c98ad))
+
 ## [2.0.0](https://github.com/mgoodric/travel-tracker/compare/v1.0.0...v2.0.0) (2026-03-24)
 
 
