@@ -14,11 +14,21 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: node
+
+      # Auto-merge the release-please PR once status checks pass.
+      # Only triggers when release-please creates/updates a PR (not on release).
+      # Branch protection still requires codeql + trivy to pass first.
+      - name: Enable auto-merge for release PR
+        if: steps.release.outputs.pr && !steps.release.outputs.release_created
+        run: gh pr merge ${{ steps.release.outputs.pr }} --auto --merge --repo mgoodric/travel-tracker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
     needs: release
