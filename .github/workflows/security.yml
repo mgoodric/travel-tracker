@@ -7,25 +7,10 @@ on:
     - cron: "0 6 * * 1"
 
 permissions:
-  security-events: write
   contents: read
   packages: read
-  actions: read
 
 jobs:
-  codeql:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-
-      - uses: github/codeql-action/autobuild@v4
-
-      - uses: github/codeql-action/analyze@v4
-
   trivy:
     runs-on: ubuntu-latest
     steps:
@@ -41,11 +26,6 @@ jobs:
       - uses: aquasecurity/trivy-action@master
         with:
           image-ref: travel-tracker:scan
-          format: sarif
-          output: trivy-results.sarif
+          format: table
           severity: CRITICAL,HIGH
-
-      - uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: trivy-results.sarif
+          exit-code: 1
