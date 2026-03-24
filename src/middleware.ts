@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const email = request.headers.get("x-forwarded-email");
+  // oauth2-proxy with nginx auth_request sets X-Email (via --set-xauthrequest)
+  const email = request.headers.get("x-email");
 
   // In dev mode, skip auth check if DEV_USER_ID is set
   if (!email && !process.env.DEV_USER_ID) {

@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 
 export async function getUserId(): Promise<string> {
   const h = await headers();
-  const email = h.get("x-forwarded-email");
+  // oauth2-proxy with nginx auth_request sets X-Email (via --set-xauthrequest)
+  const email = h.get("x-email");
 
   if (email && process.env.APP_USER_ID) {
     return process.env.APP_USER_ID;
