@@ -20,6 +20,16 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Patch Alpine packages (zlib CVE-2026-22184) and remove unused package managers
+# npm/yarn/corepack carry vulnerable transitive deps (cross-spawn, glob, minimatch, tar)
+# and are not needed to run the production server
+RUN apk upgrade --no-cache && \
+    rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /opt/yarn* \
+           /usr/local/bin/npm /usr/local/bin/npx \
+           /usr/local/bin/corepack \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
