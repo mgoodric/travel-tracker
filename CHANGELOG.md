@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0](https://github.com/mgoodric/travel-tracker/compare/v2.0.1...v2.1.0) (2026-04-12)
+
+
+### Features
+
+* add Vitest test suite with CI gate (38 tests) ([#17](https://github.com/mgoodric/travel-tracker/issues/17)) ([6e5af78](https://github.com/mgoodric/travel-tracker/commit/6e5af7833ef434a5ed83689137cbea58cd8a0da5))
+
+
+### Bug Fixes
+
+* add pull_request triggers to CI workflows to unblock PRs ([#27](https://github.com/mgoodric/travel-tracker/issues/27)) ([e135099](https://github.com/mgoodric/travel-tracker/commit/e13509971c93011edf3e74c687fc7cee2ef3e29c))
+* **ci:** extract PR number from release-please JSON output ([#33](https://github.com/mgoodric/travel-tracker/issues/33)) ([08b4550](https://github.com/mgoodric/travel-tracker/commit/08b455030eef0d0ebc6b76a72132dc300019707f))
+
 ## [2.0.1](https://github.com/mgoodric/travel-tracker/compare/v2.0.0...v2.0.1) (2026-03-24)
 
 
