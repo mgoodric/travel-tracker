@@ -26,7 +26,7 @@ jobs:
       # Branch protection still requires codeql + trivy to pass first.
       - name: Enable auto-merge for release PR
         if: steps.release.outputs.pr && !steps.release.outputs.release_created
-        run: gh pr merge ${{ steps.release.outputs.pr }} --auto --merge --repo mgoodric/travel-tracker
+        run: gh pr merge ${{ fromJSON(steps.release.outputs.pr).number }} --auto --merge --repo mgoodric/travel-tracker
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
