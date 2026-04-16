@@ -19,7 +19,7 @@ import { readdirSync, existsSync, statSync } from "fs";
 import { join, resolve } from "path";
 import { homedir } from "os";
 import sql, { closeDb } from "./lib/db.js";
-import type { Source, ImportAdapter, ImportOptions, NormalizedRow } from "./lib/types.js";
+import type { Source, ImportAdapter, ImportOptions } from "./lib/types.js";
 
 // Lazy-load adapters to avoid circular deps
 async function getAdapter(source: Source): Promise<ImportAdapter> {

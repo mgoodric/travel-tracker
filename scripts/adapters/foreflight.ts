@@ -7,7 +7,7 @@ import type {
   ImportOptions,
 } from "../lib/types.js";
 import type postgres from "postgres";
-import sql from "../lib/db.js";
+import sql from "../lib/db.js"; // used in parse() for airport lookups; importRow() uses the passed-in sql param
 import { parseCSVLine } from "../lib/csv.js";
 import { haversineMiles } from "../lib/haversine.js";
 import { getUserId } from "../lib/auth.js";

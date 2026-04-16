@@ -53,8 +53,9 @@ fi
 
 echo "  Running osxphotos query..."
 osxphotos "${QUERY_ARGS[@]}" 2>/dev/null | python3 -c "
-import json, sys
+import json, sys, os
 
+output_path = sys.argv[1]
 camera_owners = $CAMERA_OWNERS
 person_map = $PERSON_MAP
 
@@ -121,7 +122,8 @@ for line in sys.stdin:
             'country': place_country,
         })
 
-json.dump(result, open('$OUTPUT', 'w'), indent=2)
+with open(output_path, 'w') as f:
+    json.dump(result, f, indent=2)
 
 # Stats
 from collections import Counter
@@ -129,7 +131,7 @@ owners = Counter(r['owner'] for r in result)
 print(f'Extracted {len(result)} photo-visit records ({skipped} skipped)')
 for name, count in sorted(owners.items()):
     print(f'  {name}: {count}')
-" 2>&1
+" "$OUTPUT" 2>&1
 
 echo ""
 echo "Output: $OUTPUT"

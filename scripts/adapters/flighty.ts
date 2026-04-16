@@ -7,7 +7,7 @@ import type {
   RowOutcome,
   ImportOptions,
 } from "../lib/types.js";
-import sql from "../lib/db.js";
+import sql from "../lib/db.js"; // used in parse() for airport lookups; importRow() uses the passed-in sql param
 import { parseCSVLine } from "../lib/csv.js";
 import { haversineMiles } from "../lib/haversine.js";
 import { getUserId } from "../lib/auth.js";
@@ -69,6 +69,7 @@ interface AirportRecord {
   longitude: number;
 }
 
+// Module-level cache — assumes single-run CLI lifecycle
 const airportCache = new Map<string, AirportRecord | null>();
 
 async function resolveAirport(

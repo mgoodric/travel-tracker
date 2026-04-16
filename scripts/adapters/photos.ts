@@ -40,8 +40,7 @@ interface CityVisit {
   photoCount: number;
 }
 
-// ── Caches (loaded once per importRow lifecycle) ──────────────────────
-
+// Module-level caches — assumes single-run CLI lifecycle
 let existingVisitCache: Map<string, string[]> | null = null;
 
 // ── Clustering ────────────────────────────────────────────────────────

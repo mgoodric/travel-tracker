@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { getUserId } from "./auth.js";
 
+// Module-level cache — assumes single-run CLI lifecycle
 let cache: Map<string, string> | null = null;
 
 /** Load family members as a Map<lowercase_name, id>. Cached after first call. */
