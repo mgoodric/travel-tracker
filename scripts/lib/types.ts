@@ -34,19 +34,3 @@ export interface ImportOptions {
   file?: string;
 }
 
-export interface ImportRun {
-  id: number;
-  source: Source;
-  started_at: Date;
-  completed_at: Date | null;
-  status: string;
-  file_path: string | null;
-  data_date_min: Date | null;
-  data_date_max: Date | null;
-  rows_parsed: number;
-  rows_inserted: number;
-  rows_skipped_dedup: number;
-  rows_skipped_error: number;
-  watermark_date: Date | null;
-  notes: string | null;
-}

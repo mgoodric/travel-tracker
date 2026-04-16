@@ -28,13 +28,19 @@ export default async function EditFlightPage({ params }: { params: Promise<{ id:
 
   if (!flight) notFound();
 
+  // postgres.js returns DATE columns as Date objects; the form needs YYYY-MM-DD strings
+  const departureDateStr =
+    flight.departure_date instanceof Date
+      ? flight.departure_date.toISOString().slice(0, 10)
+      : String(flight.departure_date).slice(0, 10);
+
   const boundAction = updateFlight.bind(null, id);
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">Edit Flight</h1>
       <FlightForm
-        flight={flight as any}
+        flight={{ ...flight, departure_date: departureDateStr } as any}
         familyMembers={familyMembers as any}
         action={boundAction}
       />
