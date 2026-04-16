@@ -35,6 +35,7 @@ export function AppNav({ signOutAction }: AppNavProps) {
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold">
             <Plane className="h-5 w-5 text-primary" />
             <span>Travel Tracker</span>
+            <span className="text-[10px] font-normal text-muted-foreground">v{process.env.APP_VERSION}</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
