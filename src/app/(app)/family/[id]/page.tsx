@@ -83,9 +83,27 @@ export default async function FamilyMemberPage({ params }: Props) {
     uniqueAirports.add(f.arrival_airport_id);
   }
 
-  // Derive visited states/countries from visits only
+  // Derive visited states/countries from flights and visits
   const visitedStateNames = new Set<string>();
   const visitedCountryNames = new Set<string>();
+
+  for (const f of flights) {
+    for (const airport of [f.departure_airport, f.arrival_airport]) {
+      if (airport.iso_country === "US") {
+        visitedCountryNames.add("United States");
+        if (airport.iso_region) {
+          const abbr = isoRegionToStateAbbrev(airport.iso_region);
+          if (abbr) {
+            const sn = stateAbbrevToName(abbr);
+            if (sn) visitedStateNames.add(sn);
+          }
+        }
+      } else {
+        const cn = ISO2_TO_COUNTRY[airport.iso_country];
+        if (cn) visitedCountryNames.add(cn);
+      }
+    }
+  }
 
   for (const v of visits) {
     if (v.country) visitedCountryNames.add(v.country);
