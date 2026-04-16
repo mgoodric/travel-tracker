@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://github.com/mgoodric/travel-tracker/compare/v2.1.0...v2.2.0) (2026-04-16)
+
+
+### Features
+
+* unified delta import pipeline with watermark tracking ([#39](https://github.com/mgoodric/travel-tracker/issues/39)) ([e456e21](https://github.com/mgoodric/travel-tracker/commit/e456e21cac24f83b3e6d15506cdce785044750ea))
+
+
+### Bug Fixes
+
+* include flight airports in member detail visited countries/states ([6d2e7f7](https://github.com/mgoodric/travel-tracker/commit/6d2e7f725ccaafae74024a2c021526e695252ee2))
+* include flight airports in member detail visited countries/states ([#38](https://github.com/mgoodric/travel-tracker/issues/38)) ([6d2e7f7](https://github.com/mgoodric/travel-tracker/commit/6d2e7f725ccaafae74024a2c021526e695252ee2))
+
 ## [2.1.0](https://github.com/mgoodric/travel-tracker/compare/v2.0.1...v2.1.0) (2026-04-12)
 
 
