@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/mgoodric/travel-tracker/compare/v2.2.0...v2.3.0) (2026-04-16)
+
+
+### Features
+
+* display app version in nav bar ([#41](https://github.com/mgoodric/travel-tracker/issues/41)) ([e983079](https://github.com/mgoodric/travel-tracker/commit/e983079a4f0c115875ca25746c5835879e0e64b8))
+
 ## [2.2.0](https://github.com/mgoodric/travel-tracker/compare/v2.1.0...v2.2.0) (2026-04-16)
 
 
